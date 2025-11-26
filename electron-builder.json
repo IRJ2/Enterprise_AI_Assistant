@@ -1,0 +1,24 @@
+{
+  "appId": "com.enterprise.aiassistant",
+  "productName": "Enterprise AI Assistant",
+  "directories": {
+    "output": "out",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "package.json"
+  ],
+  "extraResources": [],
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "category": "Utility"
+  },
+  "win": {
+    "target": ["nsis", "portable"]
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "category": "public.app-category.productivity"
+  }
+}

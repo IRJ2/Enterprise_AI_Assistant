@@ -1,0 +1,56 @@
+{
+  "name": "enterprise-ai-assistant",
+  "version": "1.0.0",
+  "description": "Cross-platform Enterprise AI Assistant with configurable LLM endpoints",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "start": "npm run build && cross-env NODE_ENV=development electron .",
+    "dev": "concurrently \"npm run dev:renderer\" \"node scripts/start-dev.js\"",
+    "wait-and-start-electron": "wait-on -t 30000 tcp:5173 tcp:5174 tcp:5175 && npm run dev:electron",
+    "dev:renderer": "vite",
+    "dev:electron": "npm run build:main && cross-env NODE_ENV=development VITE_DEV_SERVER_URL=http://localhost:5175 electron .",
+    "dev:main": "npm run build:main && cross-env NODE_ENV=development electron .",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:renderer": "vite build",
+    "build:main": "tsc -p tsconfig.main.json",
+    "package": "npm run build && electron-builder",
+    "dist": "npm run build && electron-builder --linux --win --mac",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": [
+    "electron",
+    "ai",
+    "chatbot",
+    "assistant"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "eslint": "^8.56.0",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.0",
+    "electron-store": "^8.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-markdown": "^9.0.1",
+    "rehype-highlight": "^7.0.0",
+    "remark-gfm": "^4.0.0"
+  }
+}
