@@ -17,6 +17,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onConfigsUpdate, activeConf
   const [editingConfig, setEditingConfig] = useState<APIConfig | null>(null);
   const [customParams, setCustomParams] = useState<CustomParam[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [testingConfigId, setTestingConfigId] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
 
   useEffect(() => {
     loadConfigs();
@@ -128,6 +130,36 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onConfigsUpdate, activeConf
     setCustomParams(updated);
   };
 
+  const handleTestConnection = async (configId: string) => {
+    setTestingConfigId(configId);
+    setTestResults(prev => ({ ...prev, [configId]: { success: false, message: 'Testing...' } }));
+
+    const result = await window.electronAPI.testConnection(configId);
+
+    if (result.success) {
+      setTestResults(prev => ({
+        ...prev,
+        [configId]: { success: true, message: result.message || 'Connection successful!' }
+      }));
+    } else {
+      setTestResults(prev => ({
+        ...prev,
+        [configId]: { success: false, message: result.error || 'Connection failed' }
+      }));
+    }
+
+    setTestingConfigId(null);
+
+    // Clear the test result after 5 seconds
+    setTimeout(() => {
+      setTestResults(prev => {
+        const updated = { ...prev };
+        delete updated[configId];
+        return updated;
+      });
+    }, 5000);
+  };
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-4xl mx-auto px-6 py-8">
@@ -186,6 +218,13 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onConfigsUpdate, activeConf
                         </button>
                       )}
                       <button
+                        onClick={() => handleTestConnection(config.id)}
+                        disabled={testingConfigId === config.id}
+                        className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
+                      >
+                        {testingConfigId === config.id ? 'Testing...' : 'Test'}
+                      </button>
+                      <button
                         onClick={() => handleEditConfig(config)}
                         className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                       >
@@ -231,6 +270,39 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onConfigsUpdate, activeConf
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+                  {/* Test Connection Button */}
+                  <div className="mt-4">
+                    <button
+                      onClick={() => handleTestConnection(config.id)}
+                      className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      {testingConfigId === config.id ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    {testResults[config.id] && (
+                      <p
+                        className={`mt-2 text-sm font-medium ${
+                          testResults[config.id].success ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {testResults[config.id].message}
+                      </p>
+                    )}
+                  </div>
+                  {/* Test Result Display */}
+                  {testResults[config.id] && (
+                    <div className={`mt-4 p-3 rounded-lg ${
+                      testResults[config.id].success 
+                        ? 'bg-green-50 border border-green-200' 
+                        : 'bg-red-50 border border-red-200'
+                    }`}>
+                      <p className={`text-sm font-medium ${
+                        testResults[config.id].success ? 'text-green-800' : 'text-red-800'
+                      }`}>
+                        {testResults[config.id].success ? '✓ ' : '✗ '}
+                        {testResults[config.id].message}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -400,6 +472,71 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onConfigsUpdate, activeConf
                       No custom parameters. Add parameters like temperature, max_tokens, etc.
                     </p>
                   )}
+                </div>
+              </div>
+
+              {/* Enterprise Network Options */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <h4 className="text-md font-semibold text-gray-800 mb-4">
+                  🔒 Enterprise Network Options
+                </h4>
+                
+                {/* Ignore SSL */}
+                <div className="mb-4">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={editingConfig.ignoreSsl || false}
+                      onChange={e =>
+                        setEditingConfig({ ...editingConfig, ignoreSsl: e.target.checked })
+                      }
+                      className="rounded"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Ignore SSL Certificate Errors
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 ml-6 mt-1">
+                    ⚠️ Use only for self-signed certificates in development/testing. Not recommended for production.
+                  </p>
+                </div>
+
+                {/* CA Certificate Path */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Custom CA Certificate Path
+                  </label>
+                  <input
+                    type="text"
+                    value={editingConfig.caCertPath || ''}
+                    onChange={e =>
+                      setEditingConfig({ ...editingConfig, caCertPath: e.target.value })
+                    }
+                    placeholder="/path/to/ca-certificate.pem"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Path to custom CA certificate for private/internal APIs
+                  </p>
+                </div>
+
+                {/* Proxy URL */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Proxy URL
+                  </label>
+                  <input
+                    type="text"
+                    value={editingConfig.proxyUrl || ''}
+                    onChange={e =>
+                      setEditingConfig({ ...editingConfig, proxyUrl: e.target.value })
+                    }
+                    placeholder="http://proxy.company.com:8080"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Corporate proxy for outbound connections (optional)
+                  </p>
                 </div>
               </div>
 

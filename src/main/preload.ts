@@ -31,6 +31,16 @@ export interface ElectronAPI {
   onStreamEnd: (callback: () => void) => void;
   onStreamError: (callback: (error: string) => void) => void;
   removeStreamListeners: () => void;
+  testConnection: (configId: string) => Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }>;
+  listModels: (configId: string) => Promise<{
+    success: boolean;
+    models?: string[];
+    error?: string;
+  }>;
 }
 
 // Expose protected methods that allow the renderer process to use
@@ -59,4 +69,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('message-stream-end');
     ipcRenderer.removeAllListeners('message-stream-error');
   },
+  testConnection: (configId: string) => ipcRenderer.invoke('test-connection', configId),
+  listModels: (configId: string) => ipcRenderer.invoke('list-models', configId),
 } as ElectronAPI);

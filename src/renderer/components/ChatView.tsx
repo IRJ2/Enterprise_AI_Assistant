@@ -15,6 +15,17 @@ const ChatView: React.FC<ChatViewProps> = ({ activeConfigId }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [useStreaming, setUseStreaming] = useState(true);
 
+  // Debug: Check if electronAPI is available
+  useEffect(() => {
+    console.log('=== ChatView mounted ===');
+    console.log('window.electronAPI exists:', !!window.electronAPI);
+    console.log('window.electronAPI:', window.electronAPI);
+    if (!window.electronAPI) {
+      console.error('ERROR: electronAPI is not available! Preload script may not be loaded.');
+      setError('Application error: electronAPI not available. Please restart the app.');
+    }
+  }, []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -24,43 +35,61 @@ const ChatView: React.FC<ChatViewProps> = ({ activeConfigId }) => {
   }, [messages, streamingContent]);
 
   useEffect(() => {
-    // Setup streaming listeners
-    window.electronAPI.onStreamChunk((chunk: string) => {
-      setStreamingContent(prev => prev + chunk);
-    });
-
-    window.electronAPI.onStreamEnd(() => {
-      setStreamingContent(prev => {
-        if (prev) {
-          const assistantMessage: Message = {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: prev,
-            timestamp: new Date(),
-          };
-          setMessages(msgs => [...msgs, assistantMessage]);
-        }
-        return '';
+    if (window.electronAPI) {
+      // Setup streaming listeners
+      window.electronAPI.onStreamChunk((chunk: string) => {
+        setStreamingContent(prev => prev + chunk);
       });
-      setIsLoading(false);
-    });
 
-    window.electronAPI.onStreamError((error: string) => {
-      setError(error);
-      setStreamingContent('');
-      setIsLoading(false);
-    });
+      window.electronAPI.onStreamEnd(() => {
+        setStreamingContent(prev => {
+          if (prev) {
+            const assistantMessage: Message = {
+              id: Date.now().toString(),
+              role: 'assistant',
+              content: prev,
+              timestamp: new Date(),
+            };
+            setMessages(msgs => [...msgs, assistantMessage]);
+          }
+          return '';
+        });
+        setIsLoading(false);
+      });
 
-    return () => {
-      window.electronAPI.removeStreamListeners();
-    };
-  }, []);
+      window.electronAPI.onStreamError((error: string) => {
+        setError(error);
+        setStreamingContent('');
+        setIsLoading(false);
+      });
+
+      return () => {
+        window.electronAPI.removeStreamListeners();
+      };
+    }
+  }, [activeConfigId]);
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+    console.log('=== handleSendMessage called ===');
+    console.log('inputValue:', inputValue);
+    console.log('isLoading:', isLoading);
+    console.log('activeConfigId:', activeConfigId);
+    console.log('useStreaming:', useStreaming);
+
+    if (!inputValue.trim() || isLoading) {
+      console.log('Returning early: empty input or loading');
+      return;
+    }
 
     if (!activeConfigId) {
+      console.error('No active config ID');
       setError('Please select an API configuration in Settings first.');
+      return;
+    }
+
+    if (!window.electronAPI) {
+      console.error('electronAPI not available!');
+      setError('Application error: electronAPI not available');
       return;
     }
 
@@ -71,6 +100,7 @@ const ChatView: React.FC<ChatViewProps> = ({ activeConfigId }) => {
       timestamp: new Date(),
     };
 
+    console.log('Adding user message:', userMessage);
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
@@ -79,22 +109,27 @@ const ChatView: React.FC<ChatViewProps> = ({ activeConfigId }) => {
 
     try {
       if (useStreaming) {
+        console.log('Calling sendMessageStream...');
         // Use streaming API
         const result = await window.electronAPI.sendMessageStream(
           inputValue,
           activeConfigId
         );
+        console.log('sendMessageStream result:', result);
 
         if (!result.success && result.error) {
+          console.error('Streaming error:', result.error);
           setError(result.error);
           setIsLoading(false);
         }
       } else {
+        console.log('Calling sendMessage...');
         // Use non-streaming API
         const result = await window.electronAPI.sendMessage(
           inputValue,
           activeConfigId
         );
+        console.log('sendMessage result:', result);
 
         setIsLoading(false);
 
@@ -105,12 +140,15 @@ const ChatView: React.FC<ChatViewProps> = ({ activeConfigId }) => {
             content: result.content,
             timestamp: new Date(),
           };
+          console.log('Adding assistant message:', assistantMessage);
           setMessages(prev => [...prev, assistantMessage]);
         } else if (result.error) {
+          console.error('API error:', result.error);
           setError(result.error);
         }
       }
     } catch (err) {
+      console.error('Exception in handleSendMessage:', err);
       setIsLoading(false);
       setError('Failed to send message. Please check your configuration.');
       console.error('Send message error:', err);

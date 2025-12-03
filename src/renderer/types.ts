@@ -20,6 +20,16 @@ declare global {
       onStreamEnd: (callback: () => void) => void;
       onStreamError: (callback: (error: string) => void) => void;
       removeStreamListeners: () => void;
+      testConnection: (configId: string) => Promise<{
+        success: boolean;
+        message?: string;
+        error?: string;
+      }>;
+      listModels: (configId: string) => Promise<{
+        success: boolean;
+        models?: string[];
+        error?: string;
+      }>;
     };
   }
 }
@@ -32,6 +42,11 @@ export interface APIConfig {
   modelName: string;
   contextWindow: number;
   customParams: Record<string, any>;
+  // Enterprise network options
+  ignoreSsl?: boolean;
+  customHeaders?: Record<string, string>;
+  proxyUrl?: string;
+  caCertPath?: string;
 }
 
 export interface Message {
